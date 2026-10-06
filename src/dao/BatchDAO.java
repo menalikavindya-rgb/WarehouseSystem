@@ -176,4 +176,34 @@ public class BatchDAO {
             }
         }
     }
+        // Marks Ready batches as Depleted when none of their stock is left in the yard.
+    // Returns the number of batches updated.
+    public int markDepletedBatches() throws SQLException {
+        String sql = "UPDATE Batch SET curingStatus = 'Depleted' "
+                + "WHERE curingStatus = 'Ready' "
+                + "AND EXISTS (SELECT 1 FROM StockItem s WHERE s.batchId = Batch.batchId) "
+                + "AND NOT EXISTS (SELECT 1 FROM StockItem s WHERE s.batchId = Batch.batchId "
+                + "AND s.availabilityStatus IN ('Curing', 'Available', 'Reserved'))";
+
+        Connection con = null;
+        PreparedStatement ps = null;
+
+        try {
+            con = DBConnection.getConnection();
+            ps = con.prepareStatement(sql);
+            return ps.executeUpdate();
+
+        } finally {
+            try {
+                if (ps != null) {
+                    ps.close();
+                }
+                if (con != null) {
+                    con.close();
+                }
+            } catch (SQLException e) {
+                System.out.println("Error closing resources: " + e.getMessage());
+            }
+        }
+    }
 }
