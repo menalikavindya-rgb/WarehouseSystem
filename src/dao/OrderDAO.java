@@ -84,4 +84,38 @@ public class OrderDAO {
             }
         }
     }
+        public String getOrderStatus(int orderId) throws SQLException, OrderNotFoundException {
+        String sql = "SELECT status FROM CustomerOrder WHERE orderId = ?";
+
+        Connection con = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        try {
+            con = DBConnection.getConnection();
+            ps = con.prepareStatement(sql);
+            ps.setInt(1, orderId);
+            rs = ps.executeQuery();
+
+            if (!rs.next()) {
+                throw new OrderNotFoundException("No order found with ID " + orderId);
+            }
+            return rs.getString("status");
+
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (ps != null) {
+                    ps.close();
+                }
+                if (con != null) {
+                    con.close();
+                }
+            } catch (SQLException e) {
+                System.out.println("Error closing resources: " + e.getMessage());
+            }
+        }
+    }
 }
