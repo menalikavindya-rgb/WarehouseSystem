@@ -64,7 +64,9 @@ public class TestRefund {
             int res2 = reservationDAO.reserveStock(order2, b.getItemId(), b.getQuantity(), 16);
             double total = paymentDAO.getOrderTotal(order2);
             paymentDAO.addPayment(order2, total);
+
             shippingDAO.shipReservation(res2, 4);
+                        orderDAO.confirmOrder(order2);
             returnDAO.returnGoods(res2, 1, "Available", 4);
 
             double newTotal = paymentDAO.getOrderTotal(order2);

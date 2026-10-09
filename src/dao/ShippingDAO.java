@@ -7,14 +7,16 @@ import java.sql.SQLException;
 import exception.PaymentRequiredException;
 import exception.ReservationNotFoundException;
 import exception.StockNotAvailableException;
+import exception.OrderNotConfirmedException;
 
 public class ShippingDAO {
 
     // Ships the stock of one reservation
-    public void shipReservation(int reservationId, int userId)
+        public void shipReservation(int reservationId, int userId)
             throws SQLException, ReservationNotFoundException,
-                   PaymentRequiredException, StockNotAvailableException {
-
+                   PaymentRequiredException, StockNotAvailableException,
+                   OrderNotConfirmedException {
+        String sqlOrderCheck = "SELECT status FROM CustomerOrder WHERE orderId = ?";
         String sqlReservation = "SELECT orderId, itemId, reservedQuantity, status "
                 + "FROM Reservation WHERE reservationId = ? FOR UPDATE";
         String sqlItem = "SELECT quantity, availabilityStatus "
@@ -53,6 +55,19 @@ public class ShippingDAO {
             if (!reservationStatus.equals("Active")) {
                 throw new ReservationNotFoundException("Reservation " + reservationId
                         + " is " + reservationStatus + " and cannot be shipped.");
+            }
+                        // Step 1b: the order must be Confirmed (or already PartiallyShipped)
+            ps = con.prepareStatement(sqlOrderCheck);
+            ps.setInt(1, orderId);
+            rs = ps.executeQuery();
+            rs.next();
+            String orderStatusNow = rs.getString("status");
+            rs.close();
+            ps.close();
+
+            if (!orderStatusNow.equals("Confirmed") && !orderStatusNow.equals("PartiallyShipped")) {
+                throw new OrderNotConfirmedException("Order " + orderId + " is " + orderStatusNow
+                        + ", but it must be Confirmed before its stock can be shipped.");
             }
 
             // Step 2: the order needs at least one payment

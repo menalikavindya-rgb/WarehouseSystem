@@ -43,6 +43,7 @@ public class TestReturns {
             int shippedRes = reservationDAO.reserveStock(orderId, chosen.getItemId(), chosen.getQuantity(), 16);
             int activeRes = reservationDAO.reserveStock(orderId, other.getItemId(), other.getQuantity(), 16);
             paymentDAO.addPayment(orderId, 1.00);
+                        orderDAO.confirmOrder(orderId);
             shippingDAO.shipReservation(shippedRes, 4);
             System.out.println("Shipped reservation " + shippedRes + " (" + chosen.getQuantity()
                     + " units); reservation " + activeRes + " is still Active");

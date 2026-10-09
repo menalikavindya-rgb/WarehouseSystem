@@ -8,6 +8,7 @@ import dao.StockItemDAO;
 import exception.PaymentRequiredException;
 import exception.ReservationNotFoundException;
 import model.StockItem;
+import exception.OrderNotConfirmedException;
 
 public class TestShipping {
 
@@ -29,6 +30,14 @@ public class TestShipping {
             int res1 = reservationDAO.reserveStock(orderId, a.getItemId(), a.getQuantity(), 16);
             int res2 = reservationDAO.reserveStock(orderId, b.getItemId(), b.getQuantity(), 16);
             System.out.println("Order " + orderId + " has reservations " + res1 + " and " + res2);
+                        // Test 0: the order is still Pending, so shipping must be refused
+            try {
+                shippingDAO.shipReservation(res1, 4);
+                System.out.println("Test 0: this line should not print.");
+            } catch (OrderNotConfirmedException e) {
+                System.out.println("Test 0 refused as expected: " + e.getMessage());
+            }
+            orderDAO.confirmOrder(orderId);
 
             // Test 1: no payment yet, so shipping must be refused
             try {

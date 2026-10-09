@@ -10,6 +10,7 @@ import exception.CustomerNotFoundException;
 import exception.OrderNotFoundException;
 import java.util.ArrayList;
 import exception.OrderNotCancellableException;
+import exception.OrderNotConfirmableException;
 
 public class OrderDAO {
 
@@ -231,6 +232,73 @@ public class OrderDAO {
                 }
             } catch (SQLException e) {
                 System.out.println("Error during cleanup: " + e.getMessage());
+            }
+        }
+    }
+        // Moves an order from Pending to Confirmed (done by the sales officer)
+    public void confirmOrder(int orderId)
+            throws SQLException, OrderNotFoundException, OrderNotConfirmableException {
+
+        String sqlStatus = "SELECT status FROM CustomerOrder WHERE orderId = ?";
+        String sqlCount = "SELECT COUNT(*) AS active FROM Reservation "
+                + "WHERE orderId = ? AND status = 'Active'";
+        String sqlConfirm = "UPDATE CustomerOrder SET status = 'Confirmed' WHERE orderId = ?";
+
+        Connection con = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        try {
+            con = DBConnection.getConnection();
+
+            // Step 1: the order must exist and be Pending
+            ps = con.prepareStatement(sqlStatus);
+            ps.setInt(1, orderId);
+            rs = ps.executeQuery();
+            if (!rs.next()) {
+                throw new OrderNotFoundException("No order found with ID " + orderId);
+            }
+            String orderStatus = rs.getString("status");
+            rs.close();
+            ps.close();
+
+            if (!orderStatus.equals("Pending")) {
+                throw new OrderNotConfirmableException("Order " + orderId + " is "
+                        + orderStatus + ", so it cannot be confirmed.");
+            }
+
+            // Step 2: the order must have reserved stock
+            ps = con.prepareStatement(sqlCount);
+            ps.setInt(1, orderId);
+            rs = ps.executeQuery();
+            rs.next();
+            int activeReservations = rs.getInt("active");
+            rs.close();
+            ps.close();
+
+            if (activeReservations == 0) {
+                throw new OrderNotConfirmableException("Order " + orderId
+                        + " has no reserved stock, so it cannot be confirmed.");
+            }
+
+            // Step 3: confirm it
+            ps = con.prepareStatement(sqlConfirm);
+            ps.setInt(1, orderId);
+            ps.executeUpdate();
+
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+                if (ps != null) {
+                    ps.close();
+                }
+                if (con != null) {
+                    con.close();
+                }
+            } catch (SQLException e) {
+                System.out.println("Error closing resources: " + e.getMessage());
             }
         }
     }
