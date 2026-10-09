@@ -12,7 +12,7 @@ public class PaymentDAO {
 
     // Total value of the stock reserved for this order
     public double getOrderTotal(int orderId) throws SQLException {
-        String sql = "SELECT COALESCE(SUM(r.reservedQuantity * p.unitPrice), 0) AS total "
+                String sql = "SELECT COALESCE(SUM((r.reservedQuantity - r.returnedQuantity) * p.unitPrice), 0) AS total "
                 + "FROM Reservation r "
                 + "JOIN StockItem s ON r.itemId = s.itemId "
                 + "JOIN Batch b ON s.batchId = b.batchId "
@@ -50,7 +50,8 @@ public class PaymentDAO {
 
     // Sum of all payments made for this order
     public double getAmountPaid(int orderId) throws SQLException {
-        String sql = "SELECT COALESCE(SUM(amount), 0) AS paid FROM Payment WHERE orderId = ?";
+                String sql = "SELECT COALESCE((SELECT SUM(amount) FROM Payment WHERE orderId = ?), 0) "
+                + "- COALESCE((SELECT SUM(amount) FROM Refund WHERE orderId = ?), 0) AS paid";
 
         Connection con = null;
         PreparedStatement ps = null;
@@ -60,6 +61,7 @@ public class PaymentDAO {
             con = DBConnection.getConnection();
             ps = con.prepareStatement(sql);
             ps.setInt(1, orderId);
+            ps.setInt(2, orderId);
             rs = ps.executeQuery();
             rs.next();
             return rs.getDouble("paid");
