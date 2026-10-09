@@ -6,6 +6,7 @@ public abstract class User {
     private String email;
     private String passwordHash;
     private int accessLevel;
+    private boolean active = true;   // false = deactivated account
 
     public User(int userId, String name, String email, String passwordHash, int accessLevel) {
         this.userId = userId;
@@ -55,10 +56,19 @@ public abstract class User {
         this.accessLevel = accessLevel;
     }
 
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
     // Each child class must provide its own role name
     public abstract String getRole();
 
     public String getDetails() {
-        return "ID: " + userId + ", Name: " + name + ", Email: " + email + ", Role: " + getRole();
+        return "ID: " + userId + ", Name: " + name + ", Email: " + email + ", Role: " + getRole()
+                + (active ? "" : " (INACTIVE)");
     }
 }

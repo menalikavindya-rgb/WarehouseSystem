@@ -14,7 +14,7 @@ import model.WarehouseManager;
 public class UserDAO {
 
     public User login(String email, String plainPassword) throws SQLException, InvalidLoginException {
-        String sql = "SELECT u.userId, u.name, u.email, u.passwordHash, u.role, u.accessLevel, "
+        String sql = "SELECT u.userId, u.name, u.email, u.passwordHash, u.role, u.accessLevel, u.isActive, "
                 + "o.assignedYardZone, s.salesTarget "
                 + "FROM User u "
                 + "LEFT JOIN WarehouseOperator o ON u.userId = o.userId "
@@ -48,6 +48,11 @@ public class UserDAO {
 
             if (!passwordMatches) {
                 throw new InvalidLoginException("Invalid email or password.");
+            }
+
+            // Step 2b: a deactivated account may not log in
+            if (!rs.getBoolean("isActive")) {
+                throw new InvalidLoginException("This account has been deactivated. Please contact the manager.");
             }
 
             // Step 3: build the correct kind of user object
