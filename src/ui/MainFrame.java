@@ -50,6 +50,13 @@ public class MainFrame extends JFrame {
         // Step 2: one button in the sidebar and one screen for every menu item
         addMenuButtons(menuPanel, menuItems);
 
+        // Step 2b: bring the stock up to date once at login (finished curing, empty batches)
+        try {
+            YardOverviewPanel.runUpdates(user);
+        } catch (Exception e) {
+            System.out.println("Start-up update failed: " + e.getMessage());
+        }
+
         // Step 3: show the first screen
         showScreen(menuItems[0]);
     }
@@ -59,11 +66,12 @@ public class MainFrame extends JFrame {
     // ---------------------------------------------------------------
     private String[] getMenuItemsFor(User user) {
         if (user instanceof WarehouseOperator) {
-            return new String[] { "Yard Overview", "Register Batch", "Stock", "Damage and Returns" };
+            return new String[] { "Yard Overview", "Register Batch", "Stock", "Shipments", "Damage and Returns" };
         } else if (user instanceof SalesOfficer) {
             return new String[] { "Sellable Stock", "Customers", "Orders", "Payments" };
         } else if (user instanceof WarehouseManager) {
-            return new String[] { "Yard Overview", "Stock", "Orders", "Ledger", "Reports", "Users" };
+            return new String[] { "Yard Overview", "Register Batch", "Stock", "Customers", "Orders", "Payments",
+                    "Shipments", "Damage and Returns", "Ledger", "Reports", "Users" };
         }
         return new String[] { "Yard Overview" };
     }
@@ -153,10 +161,34 @@ public class MainFrame extends JFrame {
     }
 
     // ---------------------------------------------------------------
-    // Creates the screen for a menu name. Right now every screen is a placeholder;
-    // in the next steps each "case" will return a real screen class.
+    // Creates the screen that belongs to a menu name. Every screen is a ScreenPanel.
     // ---------------------------------------------------------------
     private ScreenPanel createScreen(String name) {
+        if (name.equals("Yard Overview")) {
+            return new YardOverviewPanel(user);
+        } else if (name.equals("Sellable Stock")) {
+            return new SellableStockPanel();
+        } else if (name.equals("Register Batch")) {
+            return new RegisterBatchPanel(user);
+        } else if (name.equals("Stock")) {
+            return new StockPanel();
+        } else if (name.equals("Customers")) {
+            return new CustomersPanel();
+        } else if (name.equals("Orders")) {
+            return new OrdersPanel(user);
+        } else if (name.equals("Payments")) {
+            return new PaymentsPanel(user);
+        } else if (name.equals("Shipments")) {
+            return new ShipmentsPanel(user);
+        } else if (name.equals("Damage and Returns")) {
+            return new DamageReturnsPanel(user);
+        } else if (name.equals("Ledger")) {
+            return new LedgerPanel();
+        } else if (name.equals("Reports")) {
+            return new ReportsPanel(user);
+        } else if (name.equals("Users")) {
+            return new UsersPanel(user);
+        }
         return new PlaceholderPanel(name);
     }
 
