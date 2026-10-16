@@ -21,14 +21,28 @@ import javax.swing.table.DefaultTableModel;
 public abstract class ScreenPanel extends JPanel {
 
     private JLabel titleLabel;
+    private JLabel subtitleLabel;
 
     public ScreenPanel(String title) {
-        setLayout(new BorderLayout(10, 10));
-        setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
+        setLayout(new BorderLayout(10, 12));
+        setBorder(BorderFactory.createEmptyBorder(26, 32, 24, 32));
 
         titleLabel = new JLabel(title);
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 22f));
-        add(titleLabel, BorderLayout.NORTH);
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 24f));
+
+        subtitleLabel = new Theme.MutedLabel(" ");
+        subtitleLabel.setBorder(BorderFactory.createEmptyBorder(2, 0, 10, 0));
+
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        header.add(titleLabel, BorderLayout.NORTH);
+        header.add(subtitleLabel, BorderLayout.CENTER);
+        add(header, BorderLayout.NORTH);
+    }
+
+    // One short line under the title that says what the screen is for.
+    public void setSubtitle(String text) {
+        subtitleLabel.setText(text);
     }
 
     // Each child class decides how it reloads its data from the database.
@@ -40,8 +54,8 @@ public abstract class ScreenPanel extends JPanel {
     protected JTable createTable() {
         JTable table = new JTable();
         table.setFillsViewportHeight(true);
-        table.setRowHeight(24);
         table.setAutoCreateRowSorter(true);   // click a column title to sort
+        Theme.styleTable(table);              // status pills, right-aligned numbers, tidy header
         return table;
     }
 
@@ -56,6 +70,7 @@ public abstract class ScreenPanel extends JPanel {
             model.addRow(row);
         }
         table.setModel(model);
+        Theme.fitColumns(table);   // size every column to its content
     }
 
     // Turns the numbers in the given columns into text like 12,500.00 so the table looks tidy.

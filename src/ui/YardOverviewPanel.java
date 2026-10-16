@@ -1,6 +1,7 @@
 package ui;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
@@ -33,44 +34,64 @@ public class YardOverviewPanel extends ScreenPanel {
     private JLabel curingValue = new JLabel("-");
     private JLabel sellableValue = new JLabel("-");
     private JProgressBar capacityBar = new JProgressBar();
-    private JLabel capacityLabel = new JLabel(" ");
+    private JLabel occupancyPercent = new JLabel(" ");
+    private JLabel capacityLabel = new Theme.MutedLabel(" ");
     private JTable statusTable = createTable();
-    private JLabel noteLabel = new JLabel(" ");
+    private JLabel noteLabel = new Theme.MutedLabel(" ");
 
     public YardOverviewPanel(User user) {
         super("Yard Overview");
         this.user = user;
 
-        // top: three figures and the capacity bar
-        JPanel tiles = new JPanel(new GridLayout(1, 3, 15, 0));
-        tiles.add(makeTile("Total physical stock (units)", totalValue));
-        tiles.add(makeTile("Stock in curing (units)", curingValue));
-        tiles.add(makeTile("True sellable stock (units)", sellableValue));
+        // row 1: the three figures, each in its status colour
+        JPanel tiles = new JPanel(new GridLayout(1, 3, 16, 0));
+        tiles.setOpaque(false);
+        tiles.add(makeTile("Total physical stock", "units in the yard", totalValue, null));
+        tiles.add(makeTile("Stock in curing", "not ready for sale yet", curingValue, Theme.statusColor("Curing")));
+        tiles.add(makeTile("True sellable stock", "ready and not reserved", sellableValue,
+                Theme.statusColor("Available")));
 
-        capacityBar.setStringPainted(true);
-        JPanel capacityPanel = new JPanel(new BorderLayout(0, 5));
-        capacityPanel.add(capacityLabel, BorderLayout.NORTH);
-        capacityPanel.add(capacityBar, BorderLayout.CENTER);
+        // row 2: how full the yard is
+        occupancyPercent.setFont(occupancyPercent.getFont().deriveFont(Font.BOLD, 15f));
+        JLabel occupancyTitle = new JLabel("Yard occupancy");
+        occupancyTitle.setFont(occupancyTitle.getFont().deriveFont(Font.BOLD, 14f));
+        JPanel occupancyHeader = new JPanel(new BorderLayout());
+        occupancyHeader.setOpaque(false);
+        occupancyHeader.add(occupancyTitle, BorderLayout.WEST);
+        occupancyHeader.add(occupancyPercent, BorderLayout.EAST);
 
-        JPanel top = new JPanel(new BorderLayout(0, 15));
+        capacityBar.setStringPainted(false);
+        capacityBar.setPreferredSize(new java.awt.Dimension(100, 10));
+
+        Theme.Card capacityCard = new Theme.Card(new BorderLayout(0, 10));
+        capacityCard.add(occupancyHeader, BorderLayout.NORTH);
+        capacityCard.add(capacityBar, BorderLayout.CENTER);
+        capacityCard.add(capacityLabel, BorderLayout.SOUTH);
+
+        JPanel top = new JPanel(new BorderLayout(0, 16));
+        top.setOpaque(false);
         top.add(tiles, BorderLayout.NORTH);
-        top.add(capacityPanel, BorderLayout.CENTER);
+        top.add(capacityCard, BorderLayout.CENTER);
 
-        // middle: units by status
-        JPanel middle = new JPanel(new BorderLayout(0, 5));
-        middle.add(new JLabel("Stock by status"), BorderLayout.NORTH);
+        // row 3: units by status
+        JLabel statusTitle = new JLabel("Stock by status");
+        statusTitle.setFont(statusTitle.getFont().deriveFont(Font.BOLD, 14f));
+        JButton refreshButton = new JButton("Refresh");
+        JPanel statusHeader = new JPanel(new BorderLayout(12, 0));
+        statusHeader.setOpaque(false);
+        statusHeader.add(statusTitle, BorderLayout.WEST);
+        statusHeader.add(noteLabel, BorderLayout.CENTER);
+        statusHeader.add(refreshButton, BorderLayout.EAST);
+
+        JPanel middle = new JPanel(new BorderLayout(0, 10));
+        middle.setOpaque(false);
+        middle.add(statusHeader, BorderLayout.NORTH);
         middle.add(new JScrollPane(statusTable), BorderLayout.CENTER);
 
-        // bottom: refresh button and a note
-        JButton refreshButton = new JButton("Refresh");
-        JPanel bottom = new JPanel(new BorderLayout(10, 0));
-        bottom.add(refreshButton, BorderLayout.WEST);
-        bottom.add(noteLabel, BorderLayout.CENTER);
-
-        JPanel body = new JPanel(new BorderLayout(0, 15));
+        JPanel body = new JPanel(new BorderLayout(0, 20));
+        body.setOpaque(false);
         body.add(top, BorderLayout.NORTH);
         body.add(middle, BorderLayout.CENTER);
-        body.add(bottom, BorderLayout.SOUTH);
         add(body, BorderLayout.CENTER);
 
         refreshButton.addActionListener(new ActionListener() {
@@ -81,14 +102,23 @@ public class YardOverviewPanel extends ScreenPanel {
         });
     }
 
-    private JPanel makeTile(String caption, JLabel valueLabel) {
-        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.BOLD, 28f));
-        JPanel tile = new JPanel(new BorderLayout(0, 5));
-        tile.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(java.awt.Color.GRAY),
-                BorderFactory.createEmptyBorder(12, 15, 12, 15)));
-        tile.add(new JLabel(caption), BorderLayout.NORTH);
-        tile.add(valueLabel, BorderLayout.CENTER);
+    // One card: a caption, a big number in the given colour, and a short explanation.
+    private JPanel makeTile(String caption, String hint, JLabel valueLabel, Color numberColor) {
+        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.BOLD, 34f));
+        if (numberColor != null) {
+            valueLabel.setForeground(numberColor);
+        }
+        JLabel captionLabel = new JLabel(caption);
+        captionLabel.setFont(captionLabel.getFont().deriveFont(Font.BOLD, 13f));
+
+        JPanel text = new JPanel(new BorderLayout(0, 2));
+        text.setOpaque(false);
+        text.add(captionLabel, BorderLayout.NORTH);
+        text.add(valueLabel, BorderLayout.CENTER);
+        text.add(new Theme.MutedLabel(hint), BorderLayout.SOUTH);
+
+        Theme.Card tile = new Theme.Card(new BorderLayout());
+        tile.add(text, BorderLayout.CENTER);
         return tile;
     }
 
@@ -122,21 +152,29 @@ public class YardOverviewPanel extends ScreenPanel {
 
             int[] capacity = viewDAO.getLatestCapacity();
             if (capacity == null) {
-                capacityLabel.setText("Yard capacity has not been set.");
+                capacityLabel.setText("The yard capacity has not been set yet.");
+                occupancyPercent.setText(" ");
                 capacityBar.setValue(0);
-                capacityBar.setString("");
             } else {
                 int max = capacity[0];
                 int percent = (int) Math.round(total * 100.0 / max);
-                capacityLabel.setText(String.format("Yard occupancy: %,d of %,d units used   |   free space: %,d units",
-                        total, max, max - total));
+                occupancyPercent.setText(percent + "%");
+                capacityLabel.setText(String.format("%,d of %,d units used, %,d free", total, max, max - total));
                 capacityBar.setMaximum(max);
                 capacityBar.setValue(Math.min(total, max));
-                capacityBar.setString(percent + "%");
+
+                // calm colour while there is space, amber when it is getting full, red when it is full
+                if (percent >= 100) {
+                    capacityBar.setForeground(Theme.statusColor("Damaged"));
+                } else if (percent >= 85) {
+                    capacityBar.setForeground(Theme.statusColor("Curing"));
+                } else {
+                    capacityBar.setForeground(Theme.accent());
+                }
             }
 
             noteLabel.setText("Updated at " + LocalTime.now().withNano(0)
-                    + "   |   stock rows that finished curing just now: " + finished);
+                    + ". Curing finished just now for " + finished + " stock row(s).");
 
         } catch (Exception e) {
             handleError(e);

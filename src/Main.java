@@ -1,11 +1,11 @@
 import javax.swing.SwingUtilities;
-import com.formdev.flatlaf.FlatDarkLaf;
 import ui.LoginFrame;
+import ui.Theme;
 
 public class Main {
 
     public static void main(String[] args) {
-        FlatDarkLaf.setup();   // the dark theme for every window
+        Theme.install(true);   // true = dark theme, false = light theme
 
         SwingUtilities.invokeLater(new Runnable() {
             @Override

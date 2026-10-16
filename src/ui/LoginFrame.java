@@ -1,12 +1,20 @@
 package ui;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.sql.SQLException;
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -14,52 +22,34 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
-import javax.swing.SwingConstants;
+import com.formdev.flatlaf.FlatClientProperties;
 import dao.UserDAO;
 import exception.InvalidLoginException;
 import model.User;
 
+// The sign-in window: a dark brand panel on the left, the form on the right.
 public class LoginFrame extends JFrame {
 
     private JTextField emailField;
     private JPasswordField passwordField;
+    private JLabel errorLabel;
     private JButton loginButton;
     private UserDAO userDAO = new UserDAO();
 
     public LoginFrame() {
-        setTitle("Warehouse Handling System - Login");
+        setTitle("Warehouse Handling System");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(420, 330);
-        setLocationRelativeTo(null);   // centre the window on the screen
+        setSize(900, 540);
+        setLocationRelativeTo(null);
         setResizable(false);
 
-        // The main panel, with space around the edges
-        JPanel content = new JPanel(new BorderLayout(10, 10));
-        content.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
-
-        // Top: the title
-        JLabel title = new JLabel("Warehouse Handling System", SwingConstants.CENTER);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 20f));
-        content.add(title, BorderLayout.NORTH);
-
-        // Middle: labels and fields stacked in one column
-        JPanel form = new JPanel(new GridLayout(0, 1, 6, 6));
-        form.add(new JLabel("Email"));
-        emailField = new JTextField();
-        form.add(emailField);
-        form.add(new JLabel("Password"));
-        passwordField = new JPasswordField();
-        form.add(passwordField);
-        content.add(form, BorderLayout.CENTER);
-
-        // Bottom: the button
-        loginButton = new JButton("Log in");
-        content.add(loginButton, BorderLayout.SOUTH);
-
+        JPanel content = new JPanel(new GridLayout(1, 2));
+        content.add(new BrandPanel());
+        content.add(buildForm());
         setContentPane(content);
+
         getRootPane().setDefaultButton(loginButton);   // pressing Enter clicks "Log in"
 
-        // What happens when the button is clicked
         loginButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -68,13 +58,70 @@ public class LoginFrame extends JFrame {
         });
     }
 
+    private JPanel buildForm() {
+        JPanel form = new JPanel();
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        form.setBorder(BorderFactory.createEmptyBorder(0, 64, 0, 64));
+
+        JLabel title = new JLabel("Sign in");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 28f));
+        title.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel hint = new Theme.MutedLabel(" ");
+        hint.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel emailLabel = new JLabel("Email");
+        emailLabel.setAlignmentX(LEFT_ALIGNMENT);
+        emailField = new JTextField();
+        emailField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "name@yard.lk");
+        emailField.putClientProperty(FlatClientProperties.STYLE, "margin:8,12,8,12");
+        emailField.setAlignmentX(LEFT_ALIGNMENT);
+        emailField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
+        JLabel passwordLabel = new JLabel("Password");
+        passwordLabel.setAlignmentX(LEFT_ALIGNMENT);
+        passwordField = new JPasswordField();
+        passwordField.putClientProperty(FlatClientProperties.STYLE, "margin:8,12,8,12; showRevealButton:true");
+        passwordField.setAlignmentX(LEFT_ALIGNMENT);
+        passwordField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
+        errorLabel = new JLabel(" ");
+        errorLabel.setForeground(new Color(0xE5484D));
+        errorLabel.setAlignmentX(LEFT_ALIGNMENT);
+
+        loginButton = new JButton("Log in");
+        Theme.stylePrimary(loginButton);
+        loginButton.setAlignmentX(LEFT_ALIGNMENT);
+        loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+        loginButton.setPreferredSize(new Dimension(100, 42));
+
+        form.add(Box.createVerticalGlue());
+        form.add(title);
+        form.add(Box.createVerticalStrut(4));
+        form.add(hint);
+        form.add(Box.createVerticalStrut(28));
+        form.add(emailLabel);
+        form.add(Box.createVerticalStrut(6));
+        form.add(emailField);
+        form.add(Box.createVerticalStrut(16));
+        form.add(passwordLabel);
+        form.add(Box.createVerticalStrut(6));
+        form.add(passwordField);
+        form.add(Box.createVerticalStrut(10));
+        form.add(errorLabel);
+        form.add(Box.createVerticalStrut(10));
+        form.add(loginButton);
+        form.add(Box.createVerticalGlue());
+        return form;
+    }
+
     private void doLogin() {
         String email = emailField.getText().trim();
         String password = new String(passwordField.getPassword());
+        errorLabel.setText(" ");
 
         if (email.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter your email and password.",
-                    "Missing details", JOptionPane.WARNING_MESSAGE);
+            errorLabel.setText("Enter your email and password.");
             return;
         }
 
@@ -84,13 +131,67 @@ public class LoginFrame extends JFrame {
             dispose();   // close the login window
 
         } catch (InvalidLoginException e) {
-            JOptionPane.showMessageDialog(this, e.getMessage(),
-                    "Login failed", JOptionPane.ERROR_MESSAGE);
+            errorLabel.setText(e.getMessage());
             passwordField.setText("");
 
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this, "Could not reach the database:\n" + e.getMessage(),
                     "Database error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // The left side: the name of the system and the stages stock moves through,
+    // drawn in the same colours the status pills use inside the app.
+    private static class BrandPanel extends JPanel {
+
+        private static final String[] STAGES = { "Curing", "Available", "Reserved", "Shipped" };
+
+        BrandPanel() {
+            setBackground(Theme.SIDEBAR_BG);
+            setPreferredSize(new Dimension(450, 540));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            int left = 56;
+            int width = getWidth() - 2 * left;
+
+            // brand mark and name
+            Theme.Badge mark = new Theme.Badge("W", new Color(0x0891B2), 60, false);
+            mark.setSize(60, 60);
+            g2.translate(left, 56);
+            mark.paint(g2);
+            g2.translate(-left, -56);
+
+            g2.setColor(Color.WHITE);
+            g2.setFont(getFont().deriveFont(Font.BOLD, 30f));
+            g2.drawString("Warehouse", left, 170);
+            g2.drawString("Handling System", left, 208);
+
+            g2.setColor(Theme.SIDEBAR_TEXT);
+            g2.setFont(getFont().deriveFont(Font.PLAIN, 14f));
+            g2.drawString("Know what is in the yard, what is still curing,", left, 246);
+            g2.drawString("and what you can sell today.", left, 266);
+
+            // the four stages as a coloured strip
+            int stripY = getHeight() - 120;
+            int gap = 6;
+            int segment = (width - gap * (STAGES.length - 1)) / STAGES.length;
+            g2.setFont(getFont().deriveFont(Font.PLAIN, 12f));
+            FontMetrics fm = g2.getFontMetrics();
+            for (int i = 0; i < STAGES.length; i++) {
+                int x = left + i * (segment + gap);
+                g2.setColor(Theme.statusColor(STAGES[i]));
+                g2.fillRoundRect(x, stripY, segment, 8, 8, 8);
+                g2.setColor(Theme.SIDEBAR_MUTED);
+                ;
+            }
+            g2.dispose();
         }
     }
 }
