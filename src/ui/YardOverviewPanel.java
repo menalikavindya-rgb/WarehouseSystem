@@ -83,7 +83,7 @@ public class YardOverviewPanel extends ScreenPanel {
         statusHeader.add(noteLabel, BorderLayout.CENTER);
         statusHeader.add(refreshButton, BorderLayout.EAST);
 
-        JPanel middle = new JPanel(new BorderLayout(0, 10));
+        JPanel middle = new JPanel(new BorderLayout(0, 20));
         middle.setOpaque(false);
         middle.add(statusHeader, BorderLayout.NORTH);
         middle.add(new JScrollPane(statusTable), BorderLayout.CENTER);

@@ -20,7 +20,7 @@ public class CustomersPanel extends ScreenPanel {
 
     private CustomerDAO customerDAO = new CustomerDAO();
 
-    private JTextField searchField = new JTextField(20);
+    private JTextField searchField = new JTextField(30);
     private JTable table = createTable();
 
     private JTextField nameField = new JTextField();
