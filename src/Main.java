@@ -1,11 +1,11 @@
 import javax.swing.SwingUtilities;
-import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.FlatDarkLaf;
 import ui.LoginFrame;
 
 public class Main {
 
     public static void main(String[] args) {
-        FlatLightLaf.setup();   // gives every window FlatLaf's modern look
+        FlatDarkLaf.setup();   // the dark theme for every window
 
         SwingUtilities.invokeLater(new Runnable() {
             @Override

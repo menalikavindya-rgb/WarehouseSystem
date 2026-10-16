@@ -28,7 +28,7 @@ public class MainFrame extends JFrame {
     private JPanel screenArea;                 // the right side, shows one screen at a time
     private CardLayout cards = new CardLayout();
     private JPanel menuPanel;                  // the sidebar buttons live here
-    private boolean darkMode = false;
+    private boolean darkMode = true;
 
     public MainFrame(User user) {
         this.user = user;
@@ -66,12 +66,13 @@ public class MainFrame extends JFrame {
     // ---------------------------------------------------------------
     private String[] getMenuItemsFor(User user) {
         if (user instanceof WarehouseOperator) {
-            return new String[] { "Yard Overview", "Register Batch", "Stock", "Shipments", "Damage and Returns" };
+            return new String[] { "Yard Overview", "Register Batch", "Stock", "Shipments", "Damage and Returns",
+                    "Notifications" };
         } else if (user instanceof SalesOfficer) {
-            return new String[] { "Sellable Stock", "Customers", "Orders", "Payments" };
+            return new String[] { "Sellable Stock", "Customers", "Orders", "Payments", "Notifications" };
         } else if (user instanceof WarehouseManager) {
             return new String[] { "Yard Overview", "Register Batch", "Stock", "Customers", "Orders", "Payments",
-                    "Shipments", "Damage and Returns", "Ledger", "Reports", "Users" };
+                    "Shipments", "Damage and Returns", "Products", "Ledger", "Reports", "Users", "Notifications" };
         }
         return new String[] { "Yard Overview" };
     }
@@ -101,7 +102,7 @@ public class MainFrame extends JFrame {
 
         // bottom: theme toggle and log out
         JPanel bottom = new JPanel(new GridLayout(0, 1, 0, 6));
-        final JButton themeButton = new JButton("Dark mode");
+        final JButton themeButton = new JButton("Light mode");
         JButton logoutButton = new JButton("Log out");
         bottom.add(themeButton);
         bottom.add(logoutButton);
@@ -188,6 +189,10 @@ public class MainFrame extends JFrame {
             return new ReportsPanel(user);
         } else if (name.equals("Users")) {
             return new UsersPanel(user);
+        } else if (name.equals("Products")) {
+            return new ProductsPanel(user);
+        } else if (name.equals("Notifications")) {
+            return new NotificationsPanel(user);
         }
         return new PlaceholderPanel(name);
     }

@@ -16,6 +16,7 @@ import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import dao.BatchDAO;
+import dao.NotificationDAO;
 import dao.StockItemDAO;
 import dao.ViewDAO;
 import model.User;
@@ -97,6 +98,12 @@ public class YardOverviewPanel extends ScreenPanel {
         BatchDAO batchDAO = new BatchDAO();
         int finished = batchDAO.completeCuring(user.getUserId(), LocalDate.now());
         batchDAO.markDepletedBatches();
+
+        // tell the operators when stock has just finished curing
+        if (finished > 0) {
+            new NotificationDAO().notifyRole("WarehouseOperator",
+                    "Curing has finished for " + finished + " stock row(s). The stock is now Available.");
+        }
         return finished;
     }
 
