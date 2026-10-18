@@ -69,15 +69,15 @@ public class MainFrame extends JFrame {
     // ---------------------------------------------------------------
     private String[] getMenuItemsFor(User user) {
         if (user instanceof WarehouseOperator) {
-            return new String[] { "Yard Overview", "Register Batch", "Stock", "Shipments", "Damage and Returns",
+            return new String[] { "Dashboard", "Register Batch", "Stock", "Shipments", "Damage and Returns",
                     "Notifications" };
         } else if (user instanceof SalesOfficer) {
-            return new String[] { "Sellable Stock", "Customers", "Orders", "Payments", "Notifications" };
+            return new String[] { "Dashboard", "Sellable Stock", "Customers", "Orders", "Payments", "Notifications" };
         } else if (user instanceof WarehouseManager) {
-            return new String[] { "Yard Overview", "Register Batch", "Stock", "Customers", "Orders", "Payments",
+            return new String[] { "Dashboard", "Register Batch", "Stock", "Customers", "Orders", "Payments",
                     "Shipments", "Damage and Returns", "Products", "Ledger", "Reports", "Users", "Notifications" };
         }
-        return new String[] { "Yard Overview" };
+        return new String[] { "Dashboard" };
     }
 
     // ---------------------------------------------------------------
@@ -201,8 +201,8 @@ public class MainFrame extends JFrame {
 
     // One plain sentence under each screen title.
     private String subtitleFor(String name) {
-        if (name.equals("Yard Overview")) {
-            return "What is in the yard right now, and how full it is.";
+        if (name.equals("Dashboard")) {
+            return "What needs your attention today.";
         } else if (name.equals("Sellable Stock")) {
             return "Stock that is ready and not reserved.";
         } else if (name.equals("Register Batch")) {
@@ -237,7 +237,7 @@ public class MainFrame extends JFrame {
     // Creates the screen that belongs to a menu name. Every screen is a ScreenPanel.
     // ---------------------------------------------------------------
     private ScreenPanel createScreen(String name) {
-        if (name.equals("Yard Overview")) {
+        if (name.equals("Dashboard")) {
             return new YardOverviewPanel(user);
         } else if (name.equals("Sellable Stock")) {
             return new SellableStockPanel();

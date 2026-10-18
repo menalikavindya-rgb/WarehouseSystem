@@ -52,7 +52,7 @@ public abstract class ScreenPanel extends JPanel {
 
     // A table the user can look at and select rows in, but not type into.
     protected JTable createTable() {
-        JTable table = new JTable();
+        JTable table = new Theme.SmartTable();
         table.setFillsViewportHeight(true);
         table.setAutoCreateRowSorter(true);   // click a column title to sort
         Theme.styleTable(table);              // status pills, right-aligned numbers, tidy header
@@ -69,8 +69,15 @@ public abstract class ScreenPanel extends JPanel {
         for (Object[] row : rows) {
             model.addRow(row);
         }
+        // keep the sort the user chose across a refresh
+        java.util.List<? extends javax.swing.RowSorter.SortKey> keys =
+                (table.getRowSorter() == null) ? null : table.getRowSorter().getSortKeys();
         table.setModel(model);
-        Theme.fitColumns(table);   // size every column to its content
+        Theme.fitColumns(table);   // size every column to its content, sort numbers as numbers
+        if (keys != null && !keys.isEmpty() && table.getRowSorter() != null
+                && keys.get(0).getColumn() < columns.length) {
+            table.getRowSorter().setSortKeys(keys);
+        }
     }
 
     // Turns the numbers in the given columns into text like 12,500.00 so the table looks tidy.

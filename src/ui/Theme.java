@@ -8,7 +8,11 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.event.MouseEvent;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -19,7 +23,13 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JViewport;
+import javax.swing.RowSorter;
+import javax.swing.event.TableColumnModelEvent;
+import javax.swing.event.TableColumnModelListener;
+import javax.swing.table.TableRowSorter;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -122,6 +132,7 @@ public class Theme {
         UIManager.put("Table.showVerticalLines", false);
         UIManager.put("Table.intercellSpacing", new Dimension(0, 1));
         UIManager.put("TableHeader.height", 38);
+        UIManager.put("ScrollPane.arc", 16);   // soft, rounded corners around every table
         UIManager.put("TableHeader.separatorColor", new Color(0, 0, 0, 0));
         UIManager.put("Table.selectionBackground", dark ? new Color(0x0E4F63) : new Color(0xD3EEF5));
         UIManager.put("Table.selectionForeground", dark ? Color.WHITE : new Color(0x0B3A47));
@@ -184,8 +195,17 @@ public class Theme {
         table.setShowVerticalLines(false);
     }
 
+    // Widest a column may grow to when it is sized to its content.
+    private static final int MAX_COLUMN_WIDTH = 650;
+
     public static void fitColumns(JTable table) {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        rememberUserWidths(table);
+
+        // widths the user dragged earlier (kept across refreshes)
+        @SuppressWarnings("unchecked")
+        Map<String, Integer> saved = (Map<String, Integer>) table.getClientProperty("userWidths");
+
         for (int col = 0; col < table.getColumnCount(); col++) {
             TableColumn column = table.getColumnModel().getColumn(col);
 
@@ -193,16 +213,130 @@ public class Theme {
             boolean numeric = table.getRowCount() > 0 && looksNumeric(table.getValueAt(0, col));
             column.setHeaderRenderer(new HeaderRenderer(numeric));
 
+            String name = String.valueOf(column.getHeaderValue());
+            if (saved != null && saved.containsKey(name)) {
+                column.setPreferredWidth(saved.get(name));
+                continue;
+            }
+
             Component header = column.getHeaderRenderer().getTableCellRendererComponent(
                     table, column.getHeaderValue(), false, false, -1, col);
             int width = header.getPreferredSize().width;
 
-            int rows = Math.min(table.getRowCount(), 60);
+            int rows = Math.min(table.getRowCount(), 120);
             for (int row = 0; row < rows; row++) {
                 Component cell = table.prepareRenderer(table.getCellRenderer(row, col), row, col);
                 width = Math.max(width, cell.getPreferredSize().width);
             }
-            column.setPreferredWidth(Math.max(70, Math.min(width + 24, 420)));
+            column.setPreferredWidth(Math.max(80, Math.min(width + 24, MAX_COLUMN_WIDTH)));
+        }
+        useNumberAwareSorting(table);
+    }
+
+    // When the user drags a column edge, remember that width for the next refresh.
+    private static void rememberUserWidths(final JTable table) {
+        if (table.getClientProperty("widthListener") != null) {
+            return;
+        }
+        table.putClientProperty("widthListener", Boolean.TRUE);
+        table.getColumnModel().addColumnModelListener(new TableColumnModelListener() {
+            public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
+                TableColumn dragged = table.getTableHeader().getResizingColumn();
+                if (dragged == null) {
+                    return;   // the table resized itself, not the user
+                }
+                @SuppressWarnings("unchecked")
+                Map<String, Integer> saved = (Map<String, Integer>) table.getClientProperty("userWidths");
+                if (saved == null) {
+                    saved = new HashMap<String, Integer>();
+                    table.putClientProperty("userWidths", saved);
+                }
+                saved.put(String.valueOf(dragged.getHeaderValue()), dragged.getWidth());
+            }
+            public void columnAdded(TableColumnModelEvent e) { }
+            public void columnRemoved(TableColumnModelEvent e) { }
+            public void columnMoved(TableColumnModelEvent e) { }
+            public void columnSelectionChanged(javax.swing.event.ListSelectionEvent e) { }
+        });
+    }
+
+    // ---------------------------------------------------------------
+    // Sorting: numbers sort as numbers (2 before 10), everything else as text.
+    // ---------------------------------------------------------------
+    private static final Comparator<Object> NUMBER_AWARE = new Comparator<Object>() {
+        public int compare(Object a, Object b) {
+            Double x = toNumber(a);
+            Double y = toNumber(b);
+            if (x != null && y != null) {
+                return Double.compare(x, y);
+            }
+            if (x != null) {
+                return -1;      // numbers before words
+            }
+            if (y != null) {
+                return 1;
+            }
+            String s1 = (a == null) ? "" : a.toString();
+            String s2 = (b == null) ? "" : b.toString();
+            return s1.compareToIgnoreCase(s2);
+        }
+    };
+
+    private static Double toNumber(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        String text = value.toString().trim().replace(",", "");   // "16,960.00" -> "16960.00"
+        if (!text.matches("-?\\d+(\\.\\d+)?")) {
+            return null;
+        }
+        return Double.valueOf(text);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static void useNumberAwareSorting(JTable table) {
+        if (table.getRowSorter() instanceof TableRowSorter) {
+            TableRowSorter<?> sorter = (TableRowSorter<?>) table.getRowSorter();
+            for (int col = 0; col < table.getColumnCount(); col++) {
+                sorter.setComparator(col, NUMBER_AWARE);
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // A table that scrolls sideways when its columns are wider than the window,
+    // and shows the full text of a cell in a tooltip when the cell is cut off.
+    // ---------------------------------------------------------------
+    public static class SmartTable extends JTable {
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            if (getParent() instanceof JViewport) {
+                return getPreferredSize().width < getParent().getWidth();
+            }
+            return super.getScrollableTracksViewportWidth();
+        }
+
+        @Override
+        public String getToolTipText(MouseEvent event) {
+            Point p = event.getPoint();
+            int row = rowAtPoint(p);
+            int col = columnAtPoint(p);
+            if (row < 0 || col < 0) {
+                return null;
+            }
+            Object value = getValueAt(row, col);
+            if (value == null) {
+                return null;
+            }
+            Component cell = prepareRenderer(getCellRenderer(row, col), row, col);
+            Rectangle area = getCellRect(row, col, false);
+            if (cell.getPreferredSize().width > area.width) {
+                return value.toString();   // only when the text is cut off
+            }
+            return null;
         }
     }
 

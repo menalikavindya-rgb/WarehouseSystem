@@ -5,16 +5,25 @@ import java.awt.Font;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.time.format.DateTimeParseException;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import dao.ReportDAO;
 import model.User;
 import report.PerformanceReport;
@@ -32,8 +41,11 @@ public class ReportsPanel extends ScreenPanel {
             new String[] { "Stock report", "Sales report", "Performance report" });
     private JTextField startField = new JTextField(LocalDate.now().minusDays(30).toString(), 10);
     private JTextField endField = new JTextField(LocalDate.now().toString(), 10);
-    private JCheckBox logBox = new JCheckBox("Save a record in the Report table", true);
+    private JCheckBox logBox = new JCheckBox("Keep a copy in the system", true);
     private JTextArea output = new JTextArea();
+    private JTable savedTable = createTable();          // the reports saved earlier
+    private boolean loadingList = false;                // true while the list is being refilled
+    private String shownTitle = "report";               // used for the suggested file name
 
     public ReportsPanel(User user) {
         super("Reports");
@@ -53,10 +65,50 @@ public class ReportsPanel extends ScreenPanel {
         output.setEditable(false);
         output.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
 
+        // right side: the report text with two buttons under it
+        JButton saveFileButton = new JButton("Save as file");
+        JButton printButton = new JButton("Print or save as PDF");
+        JPanel fileRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        fileRow.add(saveFileButton);
+        fileRow.add(printButton);
+        JPanel textSide = new JPanel(new BorderLayout(0, 6));
+        textSide.add(new JScrollPane(output), BorderLayout.CENTER);
+        textSide.add(fileRow, BorderLayout.SOUTH);
+
+        // left side: reports saved earlier
+        JPanel listSide = new JPanel(new BorderLayout(0, 6));
+        listSide.add(new Theme.MutedLabel("Saved reports (click one to open it)"), BorderLayout.NORTH);
+        listSide.add(new JScrollPane(savedTable), BorderLayout.CENTER);
+
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, listSide, textSide);
+        split.setResizeWeight(0.38);
+        split.setBorder(null);
+
         JPanel body = new JPanel(new BorderLayout(0, 10));
         body.add(bar, BorderLayout.NORTH);
-        body.add(new JScrollPane(output), BorderLayout.CENTER);
+        body.add(split, BorderLayout.CENTER);
         add(body, BorderLayout.CENTER);
+
+        savedTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                if (!e.getValueIsAdjusting() && !loadingList) {
+                    openSelectedReport();
+                }
+            }
+        });
+        saveFileButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                saveAsFile();
+            }
+        });
+        printButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                printReport();
+            }
+        });
 
         generateButton.addActionListener(new ActionListener() {
             @Override
@@ -93,11 +145,14 @@ public class ReportsPanel extends ScreenPanel {
             // generate() runs the version that belongs to the chosen report class
             String text = report.generate();
 
+            String savedNote = "";
             if (logBox.isSelected()) {
-                int reportId = reportDAO.logReport(report, user.getUserId());
-                text = text + "\n(Saved as report " + reportId + ")\n";
+                int reportId = reportDAO.logReport(report, user.getUserId(), text);
+                savedNote = "\n(Saved as report " + reportId + ")\n";
+                loadSavedList();
             }
-            output.setText(text);
+            shownTitle = report.getType().replace(' ', '_') + "_" + end;
+            output.setText(text + savedNote);
             output.setCaretPosition(0);
 
         } catch (Exception e) {
@@ -105,8 +160,79 @@ public class ReportsPanel extends ScreenPanel {
         }
     }
 
+    // Reloads the list of saved reports.
+    private void loadSavedList() {
+        try {
+            ArrayList<Object[]> rows = reportDAO.getSavedReports(user.getUserId());
+            loadingList = true;
+            fillTable(savedTable, new String[] { "Report", "Type", "From", "To", "Saved at", "By" }, rows);
+        } catch (Exception e) {
+            handleError(e);
+        } finally {
+            loadingList = false;
+        }
+    }
+
+    // Shows the text of the report that was clicked in the list.
+    private void openSelectedReport() {
+        int viewRow = savedTable.getSelectedRow();
+        if (viewRow < 0) {
+            return;
+        }
+        try {
+            int modelRow = savedTable.convertRowIndexToModel(viewRow);
+            int reportId = ((Number) savedTable.getModel().getValueAt(modelRow, 0)).intValue();
+            String type = String.valueOf(savedTable.getModel().getValueAt(modelRow, 1));
+            String to = String.valueOf(savedTable.getModel().getValueAt(modelRow, 3));
+
+            String content = reportDAO.getReportContent(reportId, user.getUserId());
+            if (content == null) {
+                content = "Report " + reportId + " was saved before report texts were kept,\n"
+                        + "so only its type and dates are available. Generate it again to get the text.";
+            }
+            shownTitle = type.replace(' ', '_') + "_" + to;
+            output.setText(content);
+            output.setCaretPosition(0);
+        } catch (Exception e) {
+            handleError(e);
+        }
+    }
+
+    // Writes the report on screen to a text file the user chooses.
+    private void saveAsFile() {
+        if (output.getText().trim().isEmpty()) {
+            showWarning("There is no report on screen yet. Generate or open one first.");
+            return;
+        }
+        JFileChooser chooser = new JFileChooser();
+        chooser.setSelectedFile(new File(shownTitle + ".txt"));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+        try {
+            File file = chooser.getSelectedFile();
+            Files.write(file.toPath(), output.getText().getBytes(StandardCharsets.UTF_8));
+            showInfo("Report saved to " + file.getAbsolutePath());
+        } catch (Exception e) {
+            handleError(e);
+        }
+    }
+
+    // Opens the print window. Choose "Microsoft Print to PDF" there to get a PDF file.
+    private void printReport() {
+        if (output.getText().trim().isEmpty()) {
+            showWarning("There is no report on screen yet. Generate or open one first.");
+            return;
+        }
+        try {
+            output.print();
+        } catch (Exception e) {
+            handleError(e);
+        }
+    }
+
     @Override
     public void refresh() {
-        // reports are only made when the button is pressed
+        loadSavedList();
     }
 }

@@ -17,10 +17,11 @@ import dao.OrderDAO;
 import dao.PaymentDAO;
 import dao.RefundDAO;
 import dao.ViewDAO;
+import model.SalesOfficer;
 import model.User;
 import model.WarehouseManager;
 
-// Payments and refunds of one order. Only a manager sees the refund controls.
+// Payments and refunds of one order. Managers and sales officers can issue refunds.
 public class PaymentsPanel extends ScreenPanel {
 
     private User user;
@@ -62,7 +63,7 @@ public class PaymentsPanel extends ScreenPanel {
         tables.add(paymentsBox);
         tables.add(refundsBox);
 
-        // bottom: record a payment (everyone), issue a refund (managers only)
+        // bottom: record a payment and issue a refund (managers and sales officers)
         JButton payButton = new JButton("Record payment");
         JPanel payRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         payRow.add(new JLabel("Payment amount (Rs.):"));
@@ -72,7 +73,7 @@ public class PaymentsPanel extends ScreenPanel {
         JPanel bottom = new JPanel(new GridLayout(0, 1));
         bottom.add(payRow);
 
-        if (user instanceof WarehouseManager) {
+        if (user instanceof WarehouseManager || user instanceof SalesOfficer) {
             JButton refundButton = new JButton("Issue refund");
             JPanel refundRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
             refundRow.add(new JLabel("Refund amount (Rs.):"));
@@ -122,6 +123,12 @@ public class PaymentsPanel extends ScreenPanel {
         }
         try {
             double amount = readDouble(paymentField, "Payment amount");
+            double balance = paymentDAO.getOutstandingBalance(currentOrderId);
+            if (balance < -0.004) {
+                showWarning("Order " + currentOrderId + " is overpaid by " + money(-balance)
+                        + ", so there is nothing left to pay.\nUse \"Issue refund\" to give the money back.");
+                return;
+            }
             int paymentId = paymentDAO.addPayment(currentOrderId, amount);
             paymentField.setText("");
             reloadOrder();
@@ -156,8 +163,22 @@ public class PaymentsPanel extends ScreenPanel {
             double paid = paymentDAO.getAmountPaid(currentOrderId);
             double balance = paymentDAO.getOutstandingBalance(currentOrderId);
 
+            String balanceText;
+            if (balance < -0.004) {
+                balanceText = "REFUND DUE " + money(-balance);   // the customer has paid too much
+            } else {
+                balanceText = "balance " + money(balance);
+            }
             summaryLabel.setText("Order " + currentOrderId + " (" + status + ")   total " + money(total)
-                    + "   paid " + money(paid) + "   balance " + money(balance));
+                    + "   paid " + money(paid) + "   " + balanceText);
+
+            // help the person issuing the refund: fill in the amount and the matching reason
+            if (balance < -0.004) {
+                refundField.setText(String.format("%.2f", -balance));
+                reasonBox.setSelectedItem(status.equals("Cancelled") ? "OrderCancelled" : "GoodsReturned");
+            } else {
+                refundField.setText("");
+            }
 
             ArrayList<Object[]> payments = viewDAO.getPaymentRows(currentOrderId);
             formatMoney(payments, 2);
