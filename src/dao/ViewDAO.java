@@ -110,17 +110,6 @@ public class ViewDAO {
         return runQuery(sql, new Object[] {}, 3);
     }
 
-    // The newest warehouse settings: {maxCapacity, alertThreshold}, or null if there are none.
-    public int[] getLatestCapacity() throws SQLException {
-        String sql = "SELECT maxCapacity, alertThreshold FROM WarehouseConfiguration "
-                + "ORDER BY configId DESC LIMIT 1";
-        ArrayList<Object[]> rows = runQuery(sql, new Object[] {}, 2);
-        if (rows.isEmpty()) {
-            return null;
-        }
-        return new int[] { ((Number) rows.get(0)[0]).intValue(), ((Number) rows.get(0)[1]).intValue() };
-    }
-
     // ---------------------------------------------------------------
     // Orders, reservations, payments
     // ---------------------------------------------------------------

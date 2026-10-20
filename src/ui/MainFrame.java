@@ -27,6 +27,8 @@ public class MainFrame extends JFrame {
 
     private User user;
     private JPanel screenArea;                 // the right side, shows one screen at a time
+    private SidebarButton notificationsButton;   // shows the unread count
+    private javax.swing.Timer badgeTimer;
     private CardLayout cards = new CardLayout();
     private JPanel menuPanel;                  // the sidebar buttons live here
 
@@ -62,6 +64,36 @@ public class MainFrame extends JFrame {
 
         // Step 3: show the first screen
         showScreen(menuItems[0]);
+
+        // Step 4: keep the unread count on the Notifications button up to date
+        updateUnreadBadge();
+        badgeTimer = new javax.swing.Timer(20000, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                updateUnreadBadge();
+            }
+        });
+        badgeTimer.start();
+    }
+
+    // Asks the database how many unread notifications this user has and shows it on the sidebar.
+    private void updateUnreadBadge() {
+        if (notificationsButton == null) {
+            return;
+        }
+        try {
+            notificationsButton.setBadge(new dao.NotificationDAO().countUnread(user.getUserId()));
+        } catch (Exception e) {
+            System.out.println("Could not read the unread count: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void dispose() {
+        if (badgeTimer != null) {
+            badgeTimer.stop();   // no more checks once this window is closed (log out)
+        }
+        super.dispose();
     }
 
     // ---------------------------------------------------------------
@@ -176,6 +208,9 @@ public class MainFrame extends JFrame {
             final String name = menuItems[i];
 
             SidebarButton button = new SidebarButton(name);
+            if (name.equals("Notifications")) {
+                notificationsButton = button;
+            }
             group.add(button);
             menuPanel.add(button);
             menuPanel.add(Box.createVerticalStrut(2));
@@ -271,6 +306,7 @@ public class MainFrame extends JFrame {
 
     private void showScreen(String name) {
         cards.show(screenArea, name);
+        updateUnreadBadge();
         // ask the screen that is now visible to reload its data
         for (java.awt.Component c : screenArea.getComponents()) {
             if (c.isVisible() && c instanceof ScreenPanel) {

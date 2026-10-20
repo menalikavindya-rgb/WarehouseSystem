@@ -53,14 +53,14 @@ public class DashboardDAO {
         return runQuery(sql, 2);
     }
 
-    // Columns: Product, Available units (the best sellers of stock first)
-    public ArrayList<Object[]> getSellableByProduct(int limit) throws SQLException {
-        String sql = "SELECT p.name, SUM(s.quantity) AS units "
+    // Every product that has sellable (Available) stock. Columns: Product, Category, Units
+    public ArrayList<Object[]> getSellableByProduct() throws SQLException {
+        String sql = "SELECT p.name, COALESCE(p.category, ''), SUM(s.quantity) "
                 + "FROM StockItem s JOIN Batch b ON s.batchId = b.batchId "
                 + "JOIN Product p ON b.productId = p.productId "
-                + "WHERE s.availabilityStatus = 'Available' "
-                + "GROUP BY p.productId, p.name ORDER BY units DESC LIMIT " + limit;
-        return runQuery(sql, 2);
+                + "WHERE s.availabilityStatus = 'Available' AND s.quantity > 0 "
+                + "GROUP BY p.productId, p.name, p.category ORDER BY p.name";
+        return runQuery(sql, 3);
     }
 
     // Batches that are still curing, the earliest finish first.

@@ -15,6 +15,8 @@ import javax.swing.SwingConstants;
 // the accent colour when it is the open screen, a soft grey when the mouse is over it.
 public class SidebarButton extends JToggleButton {
 
+    private int badge = 0;   // number shown in a small pill on the right, 0 = nothing
+
     public SidebarButton(String text) {
         super(text);
         setFocusable(false);
@@ -48,5 +50,38 @@ public class SidebarButton extends JToggleButton {
         }
         g2.dispose();
         super.paintComponent(g);
+        paintBadge(g);
+    }
+
+    // Shows how many unread items there are (for example unread notifications).
+    public void setBadge(int count) {
+        if (count != badge) {
+            badge = count;
+            repaint();
+        }
+    }
+
+    private void paintBadge(Graphics g) {
+        if (badge <= 0) {
+            return;
+        }
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+        String text = (badge > 99) ? "99+" : String.valueOf(badge);
+        g2.setFont(getFont().deriveFont(Font.BOLD, 11f));
+        java.awt.FontMetrics fm = g2.getFontMetrics();
+        int width = Math.max(20, fm.stringWidth(text) + 12);
+        int height = 20;
+        int x = getWidth() - width - 12;
+        int y = (getHeight() - height) / 2;
+
+        // amber stands out on both the grey and the accent background
+        g2.setColor(Theme.statusColor("UNREAD"));
+        g2.fillRoundRect(x, y, width, height, height, height);
+        g2.setColor(Color.WHITE);
+        g2.drawString(text, x + (width - fm.stringWidth(text)) / 2, y + (height + fm.getAscent()) / 2 - 2);
+        g2.dispose();
     }
 }

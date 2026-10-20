@@ -16,25 +16,22 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.Scrollable;
-import javax.swing.SwingConstants;
 import dao.BatchDAO;
 import dao.DashboardDAO;
 import dao.NotificationDAO;
 import dao.StockItemDAO;
 import dao.ViewDAO;
-import model.Notification;
 import model.User;
 import model.WarehouseManager;
 import model.WarehouseOperator;
 
 // The dashboard. Every role gets the same screen, filled with the figures that matter to that role:
-//   operator      - stock, curing, what is waiting to ship, yard occupancy, recent activity
-//   sales officer - sellable stock, orders, money owed, payments
-//   manager       - all of it
+//   operator      - stock by status, curing countdown, what is waiting to ship
+//   sales officer - sellable stock by product, orders, money owed, payments
+//   manager       - stock, orders, money, curing countdown and recent activity
 // Showing this screen also brings the stock up to date (curing finished, batches depleted).
 public class YardOverviewPanel extends ScreenPanel {
 
@@ -45,12 +42,10 @@ public class YardOverviewPanel extends ScreenPanel {
     private StockItemDAO stockDAO = new StockItemDAO();
     private ViewDAO viewDAO = new ViewDAO();
     private DashboardDAO dashboardDAO = new DashboardDAO();
-    private NotificationDAO notificationDAO = new NotificationDAO();
 
     // the figure cards (which ones are shown depends on the role)
     private JLabel totalValue = new JLabel("-");
     private JLabel curingValue = new JLabel("-");
-    private JLabel sellableValue = new JLabel("-");
     private JLabel shipValue = new JLabel("-");
     private JLabel openOrdersValue = new JLabel("-");
     private JLabel paymentsValue = new JLabel("-");
@@ -59,19 +54,10 @@ public class YardOverviewPanel extends ScreenPanel {
     // charts and tables
     private BarChartPanel stockChart = new BarChartPanel("Units by status");
     private BarChartPanel ordersChart = new BarChartPanel("Orders by status");
-    private BarChartPanel productChart = new BarChartPanel("Sellable stock by product");
+    private JTable productTable = createTable();
     private JTable curingTable = createTable();
     private JTable owedTable = createTable();
     private JTable activityTable = createTable();
-
-    // notifications card
-    private JPanel notificationList = new JPanel();
-    private JLabel notificationCount = new Theme.MutedLabel(" ");
-
-    // yard occupancy card
-    private JProgressBar capacityBar = new JProgressBar();
-    private JLabel occupancyPercent = new JLabel(" ");
-    private JLabel capacityLabel = new Theme.MutedLabel(" ");
 
     public YardOverviewPanel(User user) {
         super("Dashboard");
@@ -86,53 +72,36 @@ public class YardOverviewPanel extends ScreenPanel {
         // ---- row 1: the figure cards ----
         JPanel tiles;
         if (isOperator) {
-            tiles = new JPanel(new GridLayout(1, 4, 16, 0));
+            tiles = new JPanel(new GridLayout(1, 3, 16, 0));
             tiles.add(makeTile("Total physical stock", "units in the yard", totalValue, null));
             tiles.add(makeTile("Stock in curing", "still curing", curingValue, Theme.statusColor("Curing")));
-            tiles.add(makeTile("Sellable stock", "ready, not reserved", sellableValue,
-                    Theme.statusColor("Available")));
-            tiles.add(makeTile("Waiting to ship", "reservations to ship", shipValue,
-                    Theme.statusColor("Confirmed")));
+            tiles.add(makeTile("Waiting to ship", "reservations to ship", shipValue, Theme.statusColor("Confirmed")));
         } else if (isManager) {
-            tiles = new JPanel(new GridLayout(1, 5, 16, 0));
-            tiles.add(makeTile("Sellable stock", "ready, not reserved", sellableValue,
-                    Theme.statusColor("Available")));
+            tiles = new JPanel(new GridLayout(1, 4, 16, 0));
             tiles.add(makeTile("Stock in curing", "still curing", curingValue, Theme.statusColor("Curing")));
-            tiles.add(makeTile("Open orders", "not shipped yet", openOrdersValue,
-                    Theme.statusColor("Confirmed")));
+            tiles.add(makeTile("Open orders", "not shipped yet", openOrdersValue, Theme.statusColor("Confirmed")));
             tiles.add(makeTile("Payments this month", "money received", paymentsValue, null));
             tiles.add(makeTile("Money owed", "unpaid on orders", owedValue, Theme.statusColor("Curing")));
         } else {
-            tiles = new JPanel(new GridLayout(1, 4, 16, 0));
-            tiles.add(makeTile("Sellable stock", "ready, not reserved", sellableValue,
-                    Theme.statusColor("Available")));
-            tiles.add(makeTile("Open orders", "not shipped yet", openOrdersValue,
-                    Theme.statusColor("Confirmed")));
+            tiles = new JPanel(new GridLayout(1, 3, 16, 0));
+            tiles.add(makeTile("Open orders", "not shipped yet", openOrdersValue, Theme.statusColor("Confirmed")));
             tiles.add(makeTile("Money owed", "unpaid on orders", owedValue, Theme.statusColor("Curing")));
             tiles.add(makeTile("Payments this month", "money received", paymentsValue, null));
         }
         tiles.setOpaque(false);
         place(content, tiles, row++);
 
-        // ---- row 2: charts ----
+        // ---- the rest of the screen, by role ----
         if (isOperator) {
             place(content, pair(stockChart, tableCard("Curing finishing soon", curingTable)), row++);
         } else if (isManager) {
             place(content, pair(stockChart, ordersChart), row++);
-        } else {
-            place(content, pair(productChart, ordersChart), row++);
-        }
-
-        // ---- row 3 ----
-        if (isOperator) {
-            place(content, pair(notificationsCard(), occupancyCard()), row++);
-            place(content, tableCard("Recent activity", activityTable), row++);
-        } else if (isManager) {
-            place(content, pair(tableCard("Curing finishing soon", curingTable), notificationsCard()), row++);
-            place(content, occupancyCard(), row++);
+            place(content, pair(tableCard("Curing finishing soon", curingTable),
+                    tableCard("Customers who still owe money", owedTable)), row++);
             place(content, tableCard("Recent activity", activityTable), row++);
         } else {
-            place(content, pair(notificationsCard(), tableCard("Customers who still owe money", owedTable)), row++);
+            place(content, pair(tableCard("Sellable stock by product", productTable), ordersChart), row++);
+            place(content, tableCard("Customers who still owe money", owedTable), row++);
         }
 
         content.add(Box.createVerticalGlue());   // push everything to the top
@@ -236,46 +205,6 @@ public class YardOverviewPanel extends ScreenPanel {
         return card;
     }
 
-    private JPanel notificationsCard() {
-        JLabel titleLabel = new JLabel("Notifications");
-        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 14f));
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        header.add(titleLabel, BorderLayout.WEST);
-        header.add(notificationCount, BorderLayout.EAST);
-
-        notificationList.setOpaque(false);
-        notificationList.setLayout(new BoxLayout(notificationList, BoxLayout.Y_AXIS));
-
-        Theme.Card card = new Theme.Card(new BorderLayout(0, 12));
-        card.add(header, BorderLayout.NORTH);
-        card.add(notificationList, BorderLayout.CENTER);
-        return card;
-    }
-
-    private JPanel occupancyCard() {
-        occupancyPercent.setFont(occupancyPercent.getFont().deriveFont(Font.BOLD, 15f));
-        JLabel title = new JLabel("Yard occupancy");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 14f));
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        header.add(title, BorderLayout.WEST);
-        header.add(occupancyPercent, BorderLayout.EAST);
-
-        capacityBar.setStringPainted(false);
-        capacityBar.setPreferredSize(new Dimension(100, 10));
-
-        JPanel barBox = new JPanel(new BorderLayout());   // keeps the bar thin however tall the card is
-        barBox.setOpaque(false);
-        barBox.add(capacityBar, BorderLayout.NORTH);
-
-        Theme.Card card = new Theme.Card(new BorderLayout(0, 10));
-        card.add(header, BorderLayout.NORTH);
-        card.add(barBox, BorderLayout.CENTER);
-        card.add(capacityLabel, BorderLayout.SOUTH);
-        return card;
-    }
-
     // ------------------------------------------------------------------
     // data
     // ------------------------------------------------------------------
@@ -313,11 +242,12 @@ public class YardOverviewPanel extends ScreenPanel {
             runUpdates(user);
 
             // stock figures
-            int total = stockDAO.getTotalPhysicalStock();
-            totalValue.setText(units(total));
-            curingValue.setText(units(stockDAO.getCuringStock()));
-            sellableValue.setText(units(stockDAO.getSellableStock()));
-
+            if (isOperator) {
+                totalValue.setText(units(stockDAO.getTotalPhysicalStock()));
+            }
+            if (isOperator || isManager) {
+                curingValue.setText(units(stockDAO.getCuringStock()));
+            }
             if (isOperator) {
                 shipValue.setText(units(viewDAO.getShippableRows().size()));
             }
@@ -362,15 +292,15 @@ public class YardOverviewPanel extends ScreenPanel {
                 fillStockChart();
                 fillTable(curingTable, new String[] { "Product", "Units", "Ready on" },
                         dashboardDAO.getCuringSoon(8));
+            }
+            if (isManager) {
                 fillTable(activityTable, new String[] { "When", "Who", "Action", "Units", "Product" },
                         dashboardDAO.getRecentActivity(8));
-                fillOccupancy(total);
             }
             if (!isOperator && !isManager) {
-                fillProductChart();
+                fillTable(productTable, new String[] { "Product", "Category", "Units" },
+                        dashboardDAO.getSellableByProduct());
             }
-
-            fillNotifications();
 
         } catch (Exception e) {
             handleError(e);
@@ -399,75 +329,5 @@ public class YardOverviewPanel extends ScreenPanel {
             colors.add(Theme.statusColor(String.valueOf(r[0])));
         }
         ordersChart.setData(labels, values, colors);
-    }
-
-    private void fillProductChart() throws SQLException {
-        ArrayList<String> labels = new ArrayList<String>();
-        ArrayList<Double> values = new ArrayList<Double>();
-        ArrayList<Color> colors = new ArrayList<Color>();
-        for (Object[] r : dashboardDAO.getSellableByProduct(6)) {
-            labels.add(String.valueOf(r[0]));
-            values.add(((Number) r[1]).doubleValue());
-            colors.add(Theme.statusColor("Available"));
-        }
-        productChart.setData(labels, values, colors);
-    }
-
-    // Shows the newest unread notifications of the logged-in user.
-    private void fillNotifications() throws SQLException {
-        ArrayList<Notification> all = notificationDAO.getNotificationsForUser(user.getUserId());
-        ArrayList<Notification> unread = new ArrayList<Notification>();
-        for (Notification n : all) {
-            if (!n.isRead()) {
-                unread.add(n);
-            }
-        }
-
-        notificationList.removeAll();
-        if (unread.isEmpty()) {
-            notificationCount.setText("0 unread");
-            notificationList.add(new Theme.MutedLabel("You are all caught up."));
-        } else {
-            notificationCount.setText(unread.size() + " unread");
-            for (int i = 0; i < Math.min(5, unread.size()); i++) {
-                String message = unread.get(i).getMessage();
-                String shortText = message.length() > 80 ? message.substring(0, 77) + "..." : message;
-                JLabel line = new JLabel("•  " + shortText);
-                line.setToolTipText(message);
-                line.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
-                notificationList.add(line);
-            }
-            if (unread.size() > 5) {
-                notificationList.add(new Theme.MutedLabel("and " + (unread.size() - 5)
-                        + " more in the Notifications screen"));
-            }
-        }
-        notificationList.revalidate();
-        notificationList.repaint();
-    }
-
-    private void fillOccupancy(int total) throws SQLException {
-        int[] capacity = viewDAO.getLatestCapacity();
-        if (capacity == null) {
-            capacityLabel.setText("The yard capacity has not been set yet.");
-            occupancyPercent.setText(" ");
-            capacityBar.setValue(0);
-            return;
-        }
-        int max = capacity[0];
-        int percent = (int) Math.round(total * 100.0 / max);
-        occupancyPercent.setText(percent + "%");
-        capacityLabel.setText(String.format("%,d of %,d units used, %,d free", total, max, max - total));
-        capacityBar.setMaximum(max);
-        capacityBar.setValue(Math.min(total, max));
-
-        // calm colour while there is space, amber when it is getting full, red when it is full
-        if (percent >= 100) {
-            capacityBar.setForeground(Theme.statusColor("Damaged"));
-        } else if (percent >= 85) {
-            capacityBar.setForeground(Theme.statusColor("Curing"));
-        } else {
-            capacityBar.setForeground(Theme.accent());
-        }
     }
 }
