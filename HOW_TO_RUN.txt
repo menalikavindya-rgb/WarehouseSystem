@@ -1,0 +1,31 @@
+WAREHOUSE HANDLING SYSTEM - HOW TO RUN IT ON A NEW COMPUTER
+
+You need: the JDK (Java), MySQL 8, and this folder (it contains src, lib and the .bat files).
+
+ONE-TIME SETUP
+1. Open MySQL Workbench and run warehouse_db_submission_final.sql. This builds the database.
+2. In this folder, open the file db.properties with Notepad and write YOUR MySQL password
+   after "password=" (no spaces, no quotes). Save it.
+3. Double-click build.bat. Wait until it says Done.
+4. Run SetupPasswords once (in VS Code: open src\SetupPasswords.java and press Run).
+   This makes the three demo logins work.
+
+EVERY TIME AFTER THAT
+- Double-click run.bat. The login window opens.
+
+TO MAKE A REAL .EXE (OPTIONAL)
+- Double-click make_app.bat, then open installer\WarehouseSystem and double-click WarehouseSystem.exe.
+- To move it to another computer, copy the whole installer\WarehouseSystem folder.
+  On that computer, MySQL and the database must exist, and db.properties in that folder
+  must have that computer's MySQL password.
+
+DEMO LOGINS
+  Manager        upul.jayasuriya@yard.lk          manager123
+  Operator       pradeep.perera.op4@yard.lk       operator123
+  Sales officer  nuwan.de.silva.sales16@yard.lk   sales123
+
+IF SOMETHING GOES WRONG
+- "db.properties was not found": the file is missing or in the wrong folder.
+- "Access denied": the password in db.properties is wrong.
+- "Communications link failure": MySQL is not running.
+- "Unknown database": the SQL file has not been run yet.

@@ -162,7 +162,7 @@ public class LoginFrame extends JFrame {
             int width = getWidth() - 2 * left;
 
             // brand mark and name
-            Theme.Badge mark = new Theme.Badge("W", new Color(0x0891B2), 60, false);
+            Theme.Badge mark = new Theme.Badge("D", new Color(0x0891B2), 60, false);
             mark.setSize(60, 60);
             g2.translate(left, 56);
             mark.paint(g2);
@@ -170,13 +170,13 @@ public class LoginFrame extends JFrame {
 
             g2.setColor(Color.WHITE);
             g2.setFont(getFont().deriveFont(Font.BOLD, 30f));
-            g2.drawString("Warehouse", left, 170);
-            g2.drawString("Handling System", left, 208);
+            g2.drawString("Welcome!", left, 170);
+            g2.drawString("Dilani Concrete Works", left, 208);
 
             g2.setColor(Theme.SIDEBAR_TEXT);
             g2.setFont(getFont().deriveFont(Font.PLAIN, 14f));
-            g2.drawString("Know what is in the yard, what is still curing,", left, 246);
-            g2.drawString("and what you can sell today.", left, 266);
+            g2.drawString("Warehouse Handling System", left, 246);
+            
 
             // the four stages as a coloured strip
             int stripY = getHeight() - 120;
