@@ -35,7 +35,7 @@ public class MainFrame extends JFrame {
     public MainFrame(User user) {
         this.user = user;
 
-        setTitle("Warehouse Handling System");
+        setTitle("Dilani concrete works");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         // a large window, but never bigger than the screen
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
@@ -128,7 +128,7 @@ public class MainFrame extends JFrame {
 
         JPanel brand = new JPanel(new BorderLayout(12, 0));
         brand.setOpaque(false);
-        brand.add(new Theme.Badge("W", Theme.accent(), 36, false), BorderLayout.WEST);
+        brand.add(new Theme.Badge("D", Theme.accent(), 36, false), BorderLayout.WEST);
         JLabel appName = new JLabel("Warehouse");
         appName.setForeground(Color.WHITE);
         appName.setFont(appName.getFont().deriveFont(Font.BOLD, 17f));

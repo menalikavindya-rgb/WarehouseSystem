@@ -95,9 +95,7 @@ public class YardOverviewPanel extends ScreenPanel {
         if (isOperator) {
             place(content, pair(stockChart, tableCard("Curing finishing soon", curingTable)), row++);
         } else if (isManager) {
-            place(content, pair(stockChart, ordersChart), row++);
-            place(content, pair(tableCard("Curing finishing soon", curingTable),
-                    tableCard("Customers who still owe money", owedTable)), row++);
+            place(content, tableCard("Customers who still owe money", owedTable), row++);
             place(content, tableCard("Recent activity", activityTable), row++);
         } else {
             place(content, pair(tableCard("Sellable stock by product", productTable), ordersChart), row++);
@@ -284,11 +282,13 @@ public class YardOverviewPanel extends ScreenPanel {
                 formatMoney(topOwing, 2);
                 fillTable(owedTable, new String[] { "Order", "Customer", "Balance (Rs.)" }, topOwing);
 
-                fillOrdersChart();
+                if (!isManager) {
+                    fillOrdersChart();
+                }
             }
 
             // charts and tables
-            if (isOperator || isManager) {
+            if (isOperator) {
                 fillStockChart();
                 fillTable(curingTable, new String[] { "Product", "Units", "Ready on" },
                         dashboardDAO.getCuringSoon(8));
